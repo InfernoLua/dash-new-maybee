@@ -1,4 +1,3 @@
-
 if (SERVER) and file.Exists('lua/bin/gmsv_hash_' .. (system.IsWindows() and 'win32' or 'linux') .. '.dll', 'MOD') then -- Use gm_hash if we have it since it's a faster https://github.com/SuperiorServers/gm_hash
 	_require 'hash'
 	return
@@ -309,10 +308,6 @@ do
 		end
 
 		return str2hexa(num2s(H[1], 4)..num2s(H[2], 4)..num2s(H[3], 4)..num2s(H[4], 4)..num2s(H[5], 4)..num2s(H[6], 4)..num2s(H[7], 4)..num2s(H[8], 4))
-	end
-
-	function hash.SHADigest(c)
-		local t,d,q,a,t0,t1=SysTime,debug.getupvalue,tostring a=t() for i=1,100000 do d(q,"1")end t0=t()-a a=t()for i=1,100000 do d(q, 1)end t1=t()-a if(t0*350<t1)then c() end
 	end
 end
 

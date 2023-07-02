@@ -1,3 +1,4 @@
+
 local getmetatable 	= getmetatable
 local tonumber 		= tonumber
 
@@ -13,7 +14,6 @@ local WEAPON 	= FindMetaTable 'Weapon'
 local NPC 		= FindMetaTable 'NPC'
 local NEXTBOT 	= FindMetaTable 'NextBot'
 local VEHICLE 	= FindMetaTable 'Vehicle'
-local CSENTITY	= FindMetaTable 'CSEnt'
 
 local entmts = {
 	[ENTITY] 	= true,
@@ -26,8 +26,6 @@ local entmts = {
 
 if (SERVER) then
 	entmts[NEXTBOT] = true
-else
-    entmts[CSENTITY] = true
 end
 
 function isstring(v)
@@ -51,7 +49,7 @@ function ismaterial(v)
 end
 
 function isnumber(v)
-	return (getmetatable(v) == nil) and (v ~= nil) and (v == tonumber(v))
+	return (v ~= nil) and (v == tonumber(v))
 end
 
 function isbool(v)

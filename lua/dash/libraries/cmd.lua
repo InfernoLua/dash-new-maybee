@@ -50,14 +50,14 @@ debug.getregistry().Command	= COMMAND
 local params = {}
 
 if (SERVER) then
-	util.AddNetworkString 'cmd.Run'
+	util.AddNetworkString 'rp.RunCommand'
 end
 
-term.Add(cmd.ERROR_MISSING_PARAM, 'Missing argument #: #')
-term.Add(cmd.ERROR_INVALID_PLAYER, 'Could not find player: #')
-term.Add(cmd.ERROR_INVALID_NUMBER, 'Invalid number: #')
-term.Add(cmd.ERROR_INVALID_TIME, 'Invalid time: #')
-term.Add(cmd.ERROR_COMMAND_COOLDOWN, 'You need to wait # seconds to run "#" again!')
+term.Add(cmd.ERROR_MISSING_PARAM, 'Неверный Аргумент #: #')
+term.Add(cmd.ERROR_INVALID_PLAYER, 'Неудалось найти данного игрока: #')
+term.Add(cmd.ERROR_INVALID_NUMBER, 'Неверное Число: #')
+term.Add(cmd.ERROR_INVALID_TIME, 'Не верное время: #')
+term.Add(cmd.ERROR_COMMAND_COOLDOWN, 'Вы должны подождать # секунд для того что-бы "#" еще раз!')
 
 -- Arg split
 local function splitArgs(cmdobj, args)
@@ -310,7 +310,7 @@ function cmd.Remove(name)
 end
 
 if (SERVER) then
-	function cmd.Run(pl, command, args)
+	function rp.RunCommand(pl, command, args)
 		if cmd.Exists(command) then
 			local cmdobj = cmd.Get(command)
 			local name = cmdobj:GetName()
@@ -347,14 +347,12 @@ if (SERVER) then
 			if (succ ~= false) then
 				hook.Call('cmd.OnCommandRun', nil, pl, cmdobj, parsedargs, cmdobj:Run(pl, unpack(parsedargs)))
 			end
-		else
-			hook.Call('cmd.OnCommandError', nil, pl, nil, cmd.ERROR_INVALID_COMMAND, {command})
 		end
 	end
 else
-	function cmd.Run(command, ...)
+	function rp.RunCommand(command, ...)
 		local args = {...}
-		net.Start 'cmd.Run'
+		net.Start 'rp.RunCommand'
 			net.WriteString(command)
 			net.WriteUInt(#args, 4)
 			for k, v in ipairs(args) do
@@ -366,7 +364,7 @@ end
 
 local PLAYER = FindMetaTable 'Player'
 function PLAYER:RunCommand(command, ...)
-	cmd.Run(self, command, {...})
+	rp.RunCommand(self, command, {...})
 end
 
 function PLAYER:SetCommandCooldown(cmdobj, time)
@@ -388,7 +386,7 @@ function COMMAND:SetConCommand(name)
 				command = args[1]
 				if (command ~= nil) then
 					table.remove(args, 1)
-					cmd.Run(pl, command, args)
+					rp.RunCommand(pl, command, args)
 				end
 			end
 			concommand.Add('_' .. name, runcommand)
@@ -505,7 +503,7 @@ end
 function COMMAND:Run(caller, ...)
 	if caller:IsPlayer() and self.ClientCallback then
 		local args = {...}
-		net.Start 'cmd.Run'
+		net.Start 'rp.RunCommand'
 			net.WriteString(self:GetName())
 			net.WriteUInt(#args, 4)
 			for k, v in ipairs(args) do
@@ -517,7 +515,7 @@ function COMMAND:Run(caller, ...)
 end
 
 if (CLIENT) then
-	net.Receive('cmd.Run', function()
+	net.Receive('rp.RunCommand', function()
 		local args = {}
 		local name = net.ReadString()
 		for i = 1, net.ReadUInt(4) do
@@ -526,13 +524,13 @@ if (CLIENT) then
 		cmd.Get(name).ClientCallback(unpack(args))
 	end)
 else
-	net.Receive('cmd.Run', function(len, pl)
+	net.Receive('rp.RunCommand', function(len, pl)
 		local args = {}
 		local command = net.ReadString()
 		for i = 1, net.ReadUInt(4) do
 			args[#args + 1] = net.ReadString()
 		end
-		cmd.Run(pl, command, args)
+		rp.RunCommand(pl, command, args)
 	end)
 
 	hook.Add('PlayerSay', 'cmd.PlayerSay', function(pl, text)
@@ -541,7 +539,7 @@ else
 			local args = string.Explode(" ", text)
 			local command = args[1]:sub(2)
 			table.remove(args, 1)
-			cmd.Run(pl, command, args)
+			rp.RunCommand(pl, command, args)
 			return ''
 		end
 	end)

@@ -1,3 +1,4 @@
+
 local chunkSize		= 512 * 1024	-- Number of bytes to store in each chunk
 local interval		= 0.1			-- Time between each chunk read/write
 local workQueue = {}

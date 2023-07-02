@@ -4,24 +4,22 @@ local isfunction 	= isfunction
 local IsValid 		= IsValid
 
 local hook_callbacks = {}
-local hook_mapping   = {} -- Bidirectional mapping between indexes and ids (ids cannot be numbers)
+local hook_index 	 = {}
+local hook_id		 = {}
 
 local function GetTable() -- This function is now slow
 	local ret = {}
 	for name, callbacks in pairs(hook_callbacks) do
 		ret[name] = {}
 		for index, callback in pairs(callbacks) do
-			local id = hook_mapping[name][index]
-			if (id ~= nil) then
-				ret[name][id] = callback
-			end
+			ret[name][hook_id[name][index]] = callback
 		end
 	end
 	return ret
 end
 
 local function Exists(name, id)
-	return (hook_mapping[name] ~= nil) and (hook_mapping[name][id] ~= nil)
+	return (hook_index[name] ~= nil) and (hook_index[name][id] ~= nil)
 end
 
 local function Call(name, gm, ...)
@@ -29,16 +27,16 @@ local function Call(name, gm, ...)
 
 	if (callbacks ~= nil) then
 
-		local i = 1
+		local i = 0
 
 		::runhook::
+		i = i + 1
 		local v = callbacks[i]
 		if (v ~= nil) then
 			local a, b, c, d, e, f = v(...)
 			if (a ~= nil) then
 				return a, b, c, d, e, f
 			end
-			i = i + 1
 			goto runhook
 		end
 	end
@@ -66,49 +64,31 @@ local function Remove(name, id)
 		return
 	end
 
-	local mapping = hook_mapping[name]
-	local index = mapping[id]
+	local indexes = hook_index[name]
+	local index = indexes[id]
 
 	if (not index) then
 		return
 	end
 
-	mapping[id], mapping[index] = nil, nil
-
-	local count = callbacks[0]
+	local count = #callbacks
 	if (count == index) then
 		callbacks[index] = nil
-
-		-- Remove gap functions from the end
-		index = index - 1
-		while index > 0 and mapping[index] == nil do
-			callbacks[index], index = nil, index - 1
-		end
-		callbacks[0] = index
-
-		if (index == 0) then
-			hook_callbacks[name] = nil
-		end
+		indexes[id] = nil
+		hook_id[name][index] = nil
 	else
-		-- Replace it with a "gap function" - when it is called later, it will pop the last callback off, call it, and replace itself
-		callbacks[index] = function(...)
-			local count = callbacks[0]
-			assert(count > index)
+		local ids = hook_id[name]
 
-			local id, callback = mapping[count], callbacks[count]
-			mapping[count], callbacks[count] = nil, nil
+		callbacks[index] = callbacks[count]
+		callbacks[count] = nil
 
-			-- Remove gap functions from the end
-			count = count - 1
-			while count > index and mapping[count] == nil do
-				callbacks[count], count = nil, count - 1
-			end
-			callbacks[0] = count
+		local lastid = ids[count]
 
-			mapping[index], mapping[id], callbacks[index] = id, index, callback
+		indexes[id] = nil
+		indexes[lastid] = index
 
-			return callback(...)
-		end
+		ids[index] = lastid
+		ids[count] = nil
 	end
 end
 
@@ -122,36 +102,40 @@ local function Add(name, id, callback)
 		return
 	end
 
-	local callbacks, mapping = hook_callbacks[name], hook_mapping[name]
-	if (callbacks == nil) then
-		callbacks = {[0] = 0}
-		hook_callbacks[name] = callbacks
-
-		if (mapping == nil) then
-			mapping = {}
-			hook_mapping[name] = mapping
-		end
+	if (hook_callbacks[name] == nil) then
+		hook_callbacks[name] = {}
+		hook_index[name] 	 = {}
+		hook_id[name] 	 = {}
 	end
 
+	if Exists(name, id) then
+		Remove(name, id) -- properly simulate hook overwrite behavior
+	end
+
+	local callbacks = hook_callbacks[name]
+	local indexes = hook_index[name]
+
 	if (not isstring(id)) then
-		assert(not isnumber(id))
 		local orig = callback
 		callback = function(...)
 			if IsValid(id) then
 				return orig(id, ...)
-			else
-				Remove(name, id)
+			end
+
+			local index = indexes[id]
+			Remove(name, id)
+
+			local nextcallback = callbacks[index]
+			if (nextcallback ~= nil) then
+				return nextcallback(...)
 			end
 		end
 	end
 
-	local index = mapping[id]
-	if (index ~= nil) then
-		callbacks[index] = callback
-	else
-		index = callbacks[0] + 1
-		callbacks[index], mapping[id], mapping[index], callbacks[0] = callback, index, id, index
-	end
+	local index = #callbacks + 1
+	callbacks[index] = callback
+	indexes[id] = index
+	hook_id[name][index] = id
 end
 
 

@@ -6,12 +6,12 @@ function string.Random(chars)
 	return str
 end
 
-function string:IsAlphaNumeric()
-	return (not self:match('%W'))
-end
-
 function string:StartsWith(str)
 	return (self:sub(1, str:len()) == str)
+end
+
+function string:Contains(str)
+	return (string.find(self, str) ~= nil)
 end
 
 function string:Apostrophe()
@@ -32,7 +32,7 @@ function string:IsSteamID64()
 end
 
 function string:HtmlSafe()
-	return self:gsub('&', '&amp;'):gsub('<', '&lt;'):gsub('>', '&gt;')
+    return self:gsub('&', '&amp;'):gsub('<', '&lt;'):gsub('>', '&gt;')
 end
 
 local formathex = '%%%02X'
@@ -46,14 +46,6 @@ function string:URLDecode()
 	return self:gsub('+', ' '):gsub('%%(%x%x)', function(hex)
 		return string.char(tonumber(hex, 16))
 	end)
-end
-
-function string:ParseURL()
-	local ans = {}
-	for k, v in self:gmatch('([^&=?]-)=([^&=?]+)' ) do
-		ans[k] = v:URLDecode()
-	end
-	return ans
 end
 
 function string.ExplodeQuotes(str) -- Re-do this one of these days
@@ -74,9 +66,10 @@ function string.ExplodeQuotes(str) -- Re-do this one of these days
 	return res
 end
 
-function string:StripPort()
-	local p = self:find(':')
-	return (not p) and ip or self:sub(1, p - 1)
+function string.StripPort(ip)
+	local p = string.find(ip, ':')
+	if (not p) then return ip end
+	return string.sub(ip, 1, p - 1)
 end
 
 function string.FromNumbericIP(ip)
@@ -182,31 +175,4 @@ function string.Explode(separator, str, withpattern)
 	ret[#ret + 1] = string_sub(str, current_pos)
 
 	return ret
-end
-
-function string:MaxCharacters(num, withellipses)
-	if (#self <= num) then return self end
-
-	local str = self:sub(1, num)
-
-	return withellipses and (str .. '...') or str
-end
-
-local simpleTimestampPattern = "(%d+)-(%d+)-(%d+) (%d+):(%d+):(%d+)"
-function string.ToTime(str)
-    local year, month, day, hour, min, sec = str:match(simpleTimestampPattern)
-
-    return os.time({
-        year = year,
-        month = month,
-        day = day,
-        hour = hour,
-        min = min,
-        sec = sec
-    })
-end
-
--- Like string.NiceTime but for timestamps: 2021-04-08 00:56:24
-function string.NiceDate(str)
-    return string.NiceTime(string.ToTime(str))
 end

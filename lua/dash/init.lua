@@ -38,11 +38,15 @@ local modserver = (SERVER) and dash.LoadDir('libraries/server', 'thirdparty/serv
 local modclient = dash.LoadDir('libraries/client', 'thirdparty/client')
 
 for k, v in pairs(preshared) do
-	dash.IncludeSH(v)
+	if (dash.IncludeSH(v) == false) then
+		return
+	end
 end
 
 for k, v in pairs(preclient) do
-	dash.IncludeCL(v)
+	if (dash.IncludeCL(v) == false) then
+		return
+	end
 end
 
 if (SERVER) then

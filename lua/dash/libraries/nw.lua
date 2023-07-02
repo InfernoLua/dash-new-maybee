@@ -1,3 +1,4 @@
+
 --[[
 local var = nw.Register 'MyVar' 	-- You MUST call this ALL shared
 	var:Write(net.WriteUInt, 32) 	-- Write function
@@ -9,33 +10,25 @@ local var = nw.Register 'MyVar' 	-- You MUST call this ALL shared
 	var:Filter(function(ent, value) -- Sets a var to only send to players you return in your callback
 		return player.GetWhatever() -- return table players
 	end)
-
 nw.WaitForPlayer(player, callback) 	-- Calls your callback when the player is ready to recieve net messages
-
 -- Set Functions
 ENTITY:SetNetVar(var, value)
 nw.SetGlobal(var, value)
-
 -- Get functions
 ENTITY:GetNetVar(var)
 nw.GetGlobal(var)
 ]]
 
 
-nw = nw or {
-	Data = {
-		[0] = {}
-	},
-	Vars = {},
-	Mappings = {},
-	Callbacks = {}
-}
+nw 				= {}
 
-local vars 		= nw.Vars
-local mappings 	= nw.Mappings
-local data 		= nw.Data
+local vars 		= {}
+local mappings 	= {}
+local data 		= {
+	[0] = {}
+}
 local globals 	= data[0]
-local callbacks = nw.Callbacks
+local callbacks = {}
 
 local NETVAR 	= {}
 NETVAR.__index 	= NETVAR
@@ -95,10 +88,9 @@ function nw.Register(var) -- You must always call this on both the client and se
 				data[index] = {}
 			end
 
-			local oldValue = data[index][var]
 			data[index][var] = value
 
-			t:_CallHook(index, value, oldValue)
+			t:_CallHook(index, value)
 		end)
 	end
 
@@ -146,19 +138,6 @@ function NETVAR:SetNoSync()
 	return self:_Construct()
 end
 
-function NETVAR:Accessor(name)
-	name = name or self.Name
-	if SERVER then
-		ENTITY["Set" .. name] = function(ent, value)
-			ent:SetNetVar(self.Name, value)
-		end
-	end
-	ENTITY["Get" .. name] = function(ent)
-		return ent:GetNetVar(self.Name)
-	end
-	return self
-end
-
 function NETVAR:SetHook(name)
 	self.Hook = name
 	return self
@@ -170,12 +149,12 @@ function NETVAR:_Send(ent, value, recipients)
 	self:SendFunc(ent, value, recipients)
 end
 
-function NETVAR:_CallHook(index, value, oldValue)
+function NETVAR:_CallHook(index, value)
 	if self.Hook then
 		if (index ~= 0) then
-			hook.Call(self.Hook, GAMEMODE, Entity(index), value, oldValue)
+			hook.Call(self.Hook, GAMEMODE, Entity(index), value)
 		else
-			hook.Call(self.Hook, GAMEMODE, value, oldValue)
+			hook.Call(self.Hook, GAMEMODE, value)
 		end
 	end
 end
@@ -211,16 +190,15 @@ function NETVAR:_Construct()
 		end
 	else
 		self._Write = function(self, ent, value)
-			net_WriteUInt(ent:EntIndex(), 13)
+			net_WriteUInt(ent:EntIndex(), 12)
 			WriteFunc(value)
 		end
 		self._Read = function(self)
-			return net_ReadUInt(13), ReadFunc()
+			return net_ReadUInt(12), ReadFunc()
 		end
 	end
 
-	nw.Mappings = {}
-	mappings = nw.Mappings
+	mappings = {}
 	for k, v in sorted_pairs(vars, 'Name', false) do
 		local c = #mappings + 1
 		vars[k].ID = c
@@ -275,7 +253,6 @@ if (SERVER) then
 
 	hook.Add('EntityRemoved', 'nw.EntityRemoved', function(ent)
 		local index = ent:EntIndex()
-
 		if (index ~= 0) and (data[index] ~= nil) then -- For some reason this kept getting called on Entity(0), not sure why...
 			if ent:IsPlayer() then
 				net_Start('nw.PlayerRemoved')
@@ -283,7 +260,7 @@ if (SERVER) then
 				net_Broadcast()
 			else
 				net_Start('nw.EntityRemoved')
-					net_WriteUInt(index, 13)
+					net_WriteUInt(index, 12)
 				net_Broadcast()
 			end
 
@@ -308,7 +285,7 @@ if (SERVER) then
 			vars[var]:_Send(0, value)
 		else
 			net_Start('nw.NilEntityVar')
-				net_WriteUInt(0, 13)
+				net_WriteUInt(0, 12)
 				net_WriteUInt(vars[var].ID, bitcount)
 			vars[var]:SendFunc(0, value)
 		end
@@ -331,9 +308,9 @@ if (SERVER) then
 				net_WriteUInt(index, 8)
 			else
 				net_Start('nw.NilEntityVar')
-				net_WriteUInt(index, 13)
+				net_WriteUInt(index, 12)
 			end
-			net_WriteUInt(vars[var].ID, bitcount)
+				net_WriteUInt(vars[var].ID, bitcount)
 			vars[var]:SendFunc(self, value)
 		end
 	end
@@ -343,24 +320,24 @@ else
 		net_Send()
 	end)
 
-	local function nwNilVar(index, id)
-		if data[index] and mappings[id] then
-			local oldValue = data[index][mappings[id].Name]
-			data[index][mappings[id].Name] = nil
-			mappings[id]:_CallHook(index, nil, oldValue)
-		end
-	end
-
 	net.Receive('nw.NilEntityVar', function()
-		nwNilVar(net_ReadUInt(13), net_ReadUInt(bitcount))
+		local index, id = net_ReadUInt(12), net_ReadUInt(bitcount)
+		if data[index] and mappings[id] then
+			data[index][mappings[id].Name] = nil
+			mappings[id]:_CallHook(index, nil)
+		end
 	end)
 
 	net.Receive('nw.NilPlayerVar', function()
-		nwNilVar(net_ReadUInt(8), net_ReadUInt(bitcount))
+		local index, id = net_ReadUInt(8), net_ReadUInt(bitcount)
+		if data[index] and mappings[id] then
+			data[index][mappings[id].Name] = nil
+			mappings[id]:_CallHook(index, nil)
+		end
 	end)
 
 	net.Receive('nw.EntityRemoved', function()
-		data[net_ReadUInt(13)] = nil
+		data[net_ReadUInt(12)] = nil
 	end)
 
 	net.Receive('nw.PlayerRemoved', function()

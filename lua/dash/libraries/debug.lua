@@ -1,4 +1,5 @@
 -- PrintTable, Modified from https://github.com/meepdarknessmeep/gmodutil
+
 local function GetTextSize(x)
 	return x:len(), 1
 end
@@ -57,7 +58,7 @@ local ConversionLookupTable = {
 	end,
 	Color = function(obj, iscom)
 		return {typecol.func, 'Color', typecol.etc, '(', typecol.number, tostring(obj.r), typecol.etc, ', ', typecol.number,
-			tostring(obj.g), typecol.etc, ', ', typecol.number, tostring(obj.b), typecol.etc, ', ', typecol.number, 
+			tostring(obj.g), typecol.etc, ', ', typecol.number, tostring(obj.b), typecol.etc, ', ', typecol.number,
 				tostring(obj.a), typecol.etc, ')'}, true
 	end,
 	Player = function(obj, iscom)
@@ -103,7 +104,7 @@ function PrintTable(tbl, spaces, done)
 	if(spaces == 0) then MsgN('\n') end
 	MsgC(typecol.etc, '{\n')
 	local tabbed = str..string.rep(' ', 4)
-	
+
 	for i = 1, #buffer do
 		local overridesc = false
 		local key = rbuf[i]
@@ -156,11 +157,11 @@ end
 local oprint = print
 function print(...)
 	local info = debug.getinfo(2)
-	if (not info) then 
+	if (not info) then
 		oprint(...)
 		return
 	end
-	
+
 	local fname = info.short_src
 	if fileAbbrev[fname] then
 		fname = fileAbbrev[fname]
@@ -170,11 +171,11 @@ function print(...)
 		fname = fname[#fname]
 		fileAbbrev[oldfname] = fname
 	end
-	
+
 	if (not fileColors[fname]) then
 		incr = incr + 1
 		fileColors[fname] = HSVToColor(incr * 100 % 255, 1, 1)
 	end
-	
+
 	MsgC(fileColors[fname], fname .. ':' .. info.linedefined, col_white, concat(...) .. '\n')
 end

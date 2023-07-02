@@ -1,262 +1,240 @@
-require 'hash'
-
+require'hash'
 texture = {}
 
-local TEXTURE = {
-	__tostring = function(self)
-		return self.Name
-	end
+local a = {
+    __tostring = function(self)
+        return self.Name
+    end
 }
-TEXTURE.__index = TEXTURE
-TEXTURE.__concat = TEXTURE.__tostring
 
-debug.getregistry().Texture = TEXTURE
+a.__index = a
+a.__concat = a.__tostring
+debug.getregistry().Texture = a
+local b = {}
+local c = 'https://YOUR_SITE.COM/?url=%s&width=%i&height=%i&format=%s'
 
-local textures 	= {}
-local proxyurl 	= 'https://YOUR_SITE.COM/?url=%s&width=%i&height=%i&format=%s'
-
-if (not file.IsDir('texture', 'DATA')) then
-	file.CreateDir 'texture'
+if not file.IsDir('texture', 'DATA') then
+    file.CreateDir'texture'
 else
-	local files = file.Find('texture/*', 'DATA')
-	if (#files > 1000) then
-		for k, v in ipairs(files) do
-			file.Delete('texture/' .. v)
-		end
-	end
+    local d = file.Find('texture/*', 'DATA')
+
+    if #d > 1000 then
+        for e, f in ipairs(d) do
+            file.Delete('texture/' .. f)
+        end
+    end
 end
 
-function texture.Create(name)
-	local ret = setmetatable({
-		Name 	= name,
-		URL 	= '',
-		Width 	= 1000,
-		Height 	= 1000,
-		Busy 	= false,
-		Cache 	= true,
-		Proxy 	= true,
-		Format 	= 'jpg',
-		PngParameters = 'smooth'
-	}, TEXTURE)
-	textures[name] = ret
-	return ret
+function texture.Create(g)
+    local h = setmetatable({
+        Name = g,
+        URL = '',
+        Width = 1000,
+        Height = 1000,
+        Busy = false,
+        Cache = true,
+        Proxy = true,
+        Format = 'jpg',
+        PngParameters = 'smooth'
+    }, a)
+
+    b[g] = h
+
+    return h
 end
 
-function texture.Get(name)
-	if textures[name] then
-		return textures[name]:GetMaterial()
-	end
+function texture.Get(g)
+    if b[g] then return b[g]:GetMaterial() end
 end
 
-function texture.Delete(name)
-	textures[name] = nil
+function texture.Delete(g)
+    b[g] = nil
 end
 
-function texture.SetProxy(url)
-	proxyurl = url
+function texture.SetProxy(i)
+    c = i
 end
 
-function TEXTURE:SetSize(w, h)
-	self.Width, self.Height = w, h
-	return self
+function a:SetSize(j, k)
+    self.Width, self.Height = j, k
+
+    return self
 end
 
-function TEXTURE:SetFormat(format) -- valid formats are whatever your webserver proxy can handle.
-	self.Format = format
-	return self
+function a:SetFormat(l)
+    self.Format = l
+
+    return self
 end
 
-function TEXTURE:SetPngParameters(params)
-	self.PngParameters = params
-	return self
+function a:SetPngParameters(m)
+    self.PngParameters = m
+
+    return self
 end
 
-function TEXTURE:EnableCache(enable)
-	self.Cache = enable
-	return self
+function a:EnableCache(n)
+    self.Cache = n
+
+    return self
 end
 
-function TEXTURE:EnableProxy(enable)
-	self.Proxy = enable
-	return self
+function a:EnableProxy(n)
+    self.Proxy = n
+
+    return self
 end
 
-
-function TEXTURE:GetName()
-	return self.Name
+function a:GetName()
+    return self.Name
 end
 
-function TEXTURE:GetUID(reaccount)
-	if (not self.UID) or reaccount then
-		self.UID = hash.MD5(self.Name .. self.URL .. self.Width .. self.Height .. self.Format)
-	end
-	return self.UID
+function a:GetUID(o)
+    if not self.UID or o then
+        self.UID = hash.MD5(self.Name .. self.URL .. self.Width .. self.Height .. self.Format)
+    end
+
+    return self.UID
 end
 
-function TEXTURE:GetSize()
-	return self.Width, self.Height
+function a:GetSize()
+    return self.Width, self.Height
 end
 
-function TEXTURE:GetFormat()
-	return self.Format
+function a:GetFormat()
+    return self.Format
 end
 
-function TEXTURE:GetURL()
-	return self.URL
+function a:GetURL()
+    return self.URL
 end
 
-function TEXTURE:GetFile()
-	return self.File
+function a:GetFile()
+    return self.File
 end
 
-function TEXTURE:GetMaterial()
-	return self.IMaterial
+function a:GetMaterial()
+    return self.IMaterial
 end
 
-function TEXTURE:GetError()
-	return self.Error
+function a:GetError()
+    return self.Error
 end
 
-function TEXTURE:IsBusy()
-	return (self.Busy == true)
+function a:IsBusy()
+    return self.Busy == true
 end
 
-function TEXTURE:Download(url, onsuccess, onfailure)
-	if (self.Name == nil) then
-		self.Name = 'Web Material: ' .. url
-	end
-	self.URL = url
-	self.File = 'texture/' .. self:GetUID() .. '.png'
+function a:Download(i, p, q)
+    if self.Name == nil then
+        self.Name = 'Web Material: ' .. i
+    end
 
-	if self.Cache and file.Exists(self.File, 'DATA') then
-		self.IMaterial = Material('data/' .. self.File, self.PngParameters)
-		if onsuccess then
-			onsuccess(self, self.IMaterial)
-		end
-	else
-		self.Busy = true
+    self.URL = i
+    self.File = 'texture/' .. self:GetUID() .. '.png'
 
-		http.Fetch(self.Proxy and string.format(proxyurl, url:URLEncode(), self.Width, self.Height, self.Format) or url, function(body, len, headers, code)
-			if (self.Cache) then
-				file.Write(self.File, body)
-				self.IMaterial = Material('data/' .. self.File, self.PngParameters)
-			else
-				local tempfile = 'texture/tmp_' .. os.time() .. '_' .. self:GetUID() .. '.png'
-				file.Write(tempfile, body)
+    if self.Cache and file.Exists(self.File, 'DATA') then
+        self.IMaterial = Material('data/' .. self.File, self.PngParameters)
 
-				self.IMaterial = Material('data/' .. tempfile, self.PngParameters)
+        if p then
+            p(self, self.IMaterial)
+        end
+    else
+        self.Busy = true
 
-				timer.Simple(1, function()
-					file.Delete(tempfile)
-				end)
-			end
+        http.Fetch(self.Proxy and string.format(c, i:URLEncode(), self.Width, self.Height, self.Format) or i, function(r, s, t, u)
+            if self.Cache then
+                file.Write(self.File, r)
+                self.IMaterial = Material('data/' .. self.File, self.PngParameters)
+            else
+                local v = 'texture/tmp_' .. os.time() .. '_' .. self:GetUID() .. '.png'
+                file.Write(v, r)
+                self.IMaterial = Material('data/' .. v, self.PngParameters)
 
-			if onsuccess then
-				onsuccess(self, self.IMaterial)
-			end
+                timer.Simple(1, function()
+                    file.Delete(v)
+                end)
+            end
 
-			self.Busy = false
-		end, function(error)
+            if p then
+                p(self, self.IMaterial)
+            end
 
-			self.Error = error
+            self.Busy = false
+        end, function(w)
+            self.Error = w
 
-			if onfailure then
-				onfailure(self, self.Error)
-			end
+            if q then
+                q(self, self.Error)
+            end
 
-			self.Busy = false
-		end)
-	end
-	return self
+            self.Busy = false
+        end)
+    end
+
+    return self
 end
 
-function TEXTURE:RenderManual(func, callback)
-	local cachefile = 'texture/' .. self:GetUID() .. '-render.png'
+function a:RenderManual(x, y)
+    local z = 'texture/' .. self:GetUID() .. '-render.png'
 
-	if self.Cache and file.Exists(cachefile, 'DATA') then
-		self.File = cachefile
-		self.IMaterial = Material('data/' .. self.File, self.PngParameters)
+    if self.Cache and file.Exists(z, 'DATA') then
+        self.File = z
+        self.IMaterial = Material('data/' .. self.File, self.PngParameters)
 
-		if callback then
-			callback(self, self.IMaterial)
-		end
-	else
-		local w, h = self.Width, self.Height
+        if y then
+            y(self, self.IMaterial)
+        end
+    else
+        local j, k = self.Width, self.Height
+        local A = 'texture.PostRender' .. self:GetUID()
 
-		local hookId = 'texture.PostRender' .. self:GetUID()
-		hook.Add('PostRender', hookId, function()
-			hook.Remove('PostRender', hookId)
+        hook.Add('PostRender', A, function()
+            hook.Remove('PostRender', A)
+            local B = GetRenderTarget(self:GetName(), j, k, true)
+            render.PushRenderTarget(B, 0, 0, j, k)
+            render.OverrideAlphaWriteEnable(true, true)
+            surface.DisableClipping(true)
+            render.ClearDepth()
+            render.Clear(0, 0, 0, 0)
+            cam.Start2D()
+            x(self, j, k)
+            cam.End2D()
 
-			local drawRT = GetRenderTarget(self:GetName(), w, h, true)
+            if self.Cache then
+                self.File = 'texture/' .. self:GetUID() .. '-render.png'
 
-			render.PushRenderTarget(drawRT, 0, 0, w, h)
-				render.OverrideAlphaWriteEnable(true, true)
-				surface.DisableClipping(true)
-				render.ClearDepth()
-				render.Clear(0, 0, 0, 0)
+                file.Write(self.File, render.Capture({
+                    format = 'png',
+                    quality = 100,
+                    x = 0,
+                    y = 0,
+                    h = k,
+                    w = j
+                }))
+            end
 
-					cam.Start2D()
-						func(self, w, h)
-					cam.End2D()
+            surface.DisableClipping(false)
+            render.OverrideAlphaWriteEnable(false)
+            render.PopRenderTarget()
 
-					if self.Cache then
-						self.File = 'texture/' .. self:GetUID() .. '-render.png'
-						file.Write(self.File, render.Capture({
-							format = 'png',
-							quality = 100,
-							x = 0,
-							y = 0,
-							h = h,
-							w = w
-						}))
-					end
+            if self.Cache then
+                self.IMaterial = Material('data/' .. self.File)
+            end
 
-				surface.DisableClipping(false)
-				render.OverrideAlphaWriteEnable(false)
-			render.PopRenderTarget()
+            if y then
+                y(self, self.IMaterial)
+            end
+        end)
+    end
 
-			if self.Cache then
-				self.IMaterial = Material('data/' .. self.File)
-			end
-
-			if callback then
-				callback(self, self.IMaterial)
-			end
-		end)
-	end
-	return self
+    return self
 end
 
-function TEXTURE:Render(func, callback)
-	return self:RenderManual(function(self, w, h)
-		cam.Start2D()
-			func(self, w, h)
-		cam.End2D()
-	end, callback)
+function a:Render(x, y)
+    return self:RenderManual(function(self, j, k)
+        cam.Start2D()
+        x(self, j, k)
+        cam.End2D()
+    end, y)
 end
-
-/*
-Basic usage
-
-local logo = texture.Create('example')
-	:SetSize(570, 460)
-	:SetFormat('png')
-	:Download('https://i.imgur.com/TZcJ1CK.png', print, print)
-	:Render(function(self, w, h)
-		draw.Box(0, 0, w, h, Color(0,255,0))
-
-		surface.SetDrawColor(255,255,255,255)
-		surface.SetMaterial(self:GetMaterial())
-		surface.DrawTexturedRect(0, 0, w, h)
-
-		draw.SimpleText('hello!!!!', 'CloseCaption_BoldItalic', 100, 100, Color(0,0,0), TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
-	end)
-
-hook.Add('HUDPaint', 'awdawd', function()
-	if logo:GetMaterial() then
-		surface.SetDrawColor(255,255,255,255)
-		surface.SetMaterial(logo:GetMaterial())
-		surface.DrawTexturedRect(35, 35, 570, 460)
-	end
-end)
-*/

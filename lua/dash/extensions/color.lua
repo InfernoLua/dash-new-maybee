@@ -42,7 +42,7 @@ function COLOR:ToEncodedRGB()
 end
 
 function COLOR:SetEncodedRGBA(num)
-	self.r, self.g, self.b, self.a = bit_band(bit_rshift(num, 16), 0xFF), bit_band(bit_rshift(num, 8), 0xFF), bit_band(num, 0xFF), bit_band(bit_rshift(num, 24), 0xFF)
+	self.r, self.g, self.b, self.a = bit_band(rshift(num, 16), 0xFF), bit_band(rshift(num, 8), 0xFF), bit_band(num, 0xFF), bit_band(rshift(num, 24), 0xFF)
 end
 
 function COLOR:ToEncodedRGBA()
@@ -51,17 +51,4 @@ end
 
 function COLOR:Lerp(fraction, from, to)
 	self.r, self.g, self.b = Lerp(fraction, from.r, to.r), Lerp(fraction, from.g, to.g), Lerp(fraction, from.b, to.b), Lerp(fraction, from.a, to.a)
-end
-
-function COLOR:IsLight()
-	local _, _, l = ColorToHSL(self)
-	return l >= .5
-end
-
-function COLOR:InverseLight(color, snap)
-	color = color or color_white
-	local _, _, l = ColorToHSL(self)
-	local h, s, _ = ColorToHSL(color)
-
-	return HSLToColor(h, s, snap and math.Round(1 - l) or (1 - l))
 end

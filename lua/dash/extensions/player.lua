@@ -39,8 +39,6 @@ function PLAYER:DestroyTimer(name)
 	timer.Destroy(self:SteamID64() .. '-' .. name)
 end
 
-if (CLIENT) then return end
-
 -- Fix for https://github.com/Facepunch/garrysmod-issues/issues/2447
 local telequeue = {}
 local setpos = ENTITY.SetPos

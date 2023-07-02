@@ -1,17 +1,11 @@
 require 'tmysql4'
 
-if (not tmysql.Version) or (tmysql.Version < 4.1) then
-	error 'tmysql version is too old! Install 4.1 or later.'
-end
-
 mysql = setmetatable({
 	GetTable = setmetatable({}, {
 		__call = function(self)
 			return self
 		end
-	}),
-
-	QueryCount = 0
+	})
 }, {
 	__call = function(self, ...)
 		return self.Connect(...)
@@ -20,7 +14,7 @@ mysql = setmetatable({
 
 local DATABASE = {
 	__tostring = function(self)
-		return self.Username .. ":" .. self.Database .. '@' .. self.Hostname .. ':' ..  self.Port
+		return self.Database .. '@' .. self.Hostname .. ':' ..  self.Port
 	end
 }
 DATABASE.__concat 	= DATABASE.__tostring
@@ -47,13 +41,12 @@ local select 		= select
 local isfunction 	= isfunction
 local string_format = string.format
 local string_gsub 	= string.gsub
-local string_rep	= string.rep
 
 local color_prefix, color_text = Color(185,0,255), Color(250,250,250)
 
 local query_queue	= {}
 
-function mysql.Connect(hostname, username, password, database, port, optional_socketpath, optional_clientflags, optional_connectcallback)
+function mysql.Connect(hostname, username, password, database, port, optional_socketpath, optional_clientflags)
 	local db_obj = setmetatable({
 		Hostname = hostname,
 		Username = username,
@@ -62,29 +55,21 @@ function mysql.Connect(hostname, username, password, database, port, optional_so
 		Port 	 = port,
 	}, DATABASE)
 
-	local cached = mysql.GetTable[tostring(db_obj)]
-	if cached and cached.Handle:IsValid() then
-		cached:Log('Recycled connection.')
-		return cached
+	if mysql.GetTable[tostring(db_obj)] then
+		return mysql.GetTable[tostring(db_obj)]
 	end
 
-	db_obj.Handle, db_obj.Error = tmysql.Connect(hostname, username, password, database, port, optional_socketpath, optional_clientflags, optional_connectcallback)
-
-	--db_obj.Handle:Query('show tables', PrintTable)
+	db_obj.Handle, db_obj.Error = tmysql.initialize(hostname, username, password, database, port, optional_socketpath, optional_clientflags)
 
 	if db_obj.Error then
 		db_obj:Log(db_obj.Error)
 	elseif (db_obj.Handle == false) then
-		db_obj:Log('Connection failed with unknown error!')
+		db_obj:Log('Connection failed!')
 	else
 		mysql.GetTable[tostring(db_obj)] = db_obj
 
 		db_obj:Log('Connected successfully.')
 	end
-
-	hook.Add('Think', db_obj.Handle, function()
-		db_obj.Handle:Poll()
-	end)
 
 	--self:SetOption(MYSQL_SET_CLIENT_IP, GetConVarString('ip'))
 	--self:Connect()
@@ -115,83 +100,28 @@ end
 
 local quote = '"'
 local retry_errors = {
-	[2013] = true, -- Lost connection to MySQL server during query
-	[2006] = true, -- MySQL server has gone away
-	[1243] = true, -- Unknown prepared statement handler (module should re-prepare and not pass this error, but better safe than sorry)
-	[1053] = true, -- Server shutdown in progress (hopefully the server is only restarting)
+	['Lost connection to MySQL server during query'] = true,
+	[' MySQL server has gone away'] = true,
 }
 
-local function getQueryID()
-	mysql.QueryCount = mysql.QueryCount + 1
-	return mysql.QueryCount - 1
-end
-
-local function handlequery(id, db, query, results, cback, tries)
+local function handlequery(db, query, results, cback)
 	if (results[1].error ~= nil) then
-		db:Log("[" .. results[1].errorid .. "] " .. results[1].error)
-		db:Log(query)
-		if retry_errors[results[1].errorid] then
-			if (tries < 5) then
-				db:Log("Will retry again")
-				query_queue[id] = {
-					Id		= id,
-					Db 		= db,
+		db:Log(results[1].error)
+		if retry_errors[results[1].error] then
+			if query_queue[query] then
+				query_queue[query].Trys = query_queue[query].Trys + 1
+			else
+				query_queue[query] = {
+					Db 		= db, 
 					Query 	= query,
-					Trys 	= tries + 1,
+					Trys 	= 0,
 					Cback 	= cback
 				}
-			else
-				db:Log("Maximum retries attempted - giving up")
 			end
 		end
-	else
-		query_queue[id] = nil
-		if (cback) then
-			cback(results[1].data, results[1].lastid, results[1].affected, results[1].time)
-		end
+	elseif cback then
+		cback(results[1].data, results[1].lastid, results[1].affected, results[1].time)
 	end
-end
-
-local function handlestatement(id, db, stmt, values, varcount, results, cback, tries)
-	if (results[1].error ~= nil) then
-		db:Log("[" .. results[1].errorid .. "] " .. results[1].error)
-		db:Log(stmt.Query)
-		if retry_errors[results[1].errorid] then
-			if (tries < 5) then
-				db:Log("Will retry again")
-				query_queue[id] = {
-					Id		= id,
-					Db 		= db,
-					Stmt 	= stmt,
-					Trys 	= tries + 1,
-					Cback 	= cback,
-					Values	= values,
-					VarCount= varcount
-				}
-			else
-				db:Log("Maximum retries attempted - giving up")
-			end
-		end
-	else
-		query_queue[id] = nil
-	 	if (cback) then
-			cback(results[1].data, results[1].lastid, results[1].affected, results[1].time)
-		end
-	end
-end
-
-local function runQuery(id, db, query, cback, tries)
-	db.Handle:Query(query, function(results)
-		handlequery(id, db, query, results, cback, (tries or 0))
-	end)
-end
-
-local function runStatement(id, db, stmt, values, varcount, cback, tries)
-	values[varcount + 1] = function(results)
-		handlestatement(id, db, stmt, values, varcount, results, cback, (tries or 0))
-	end
-
-	stmt.Statement:Run(unpack(values, 1, varcount + 2))
 end
 
 function DATABASE:Query(query, ...)
@@ -202,7 +132,9 @@ function DATABASE:Query(query, ...)
 		return (args[count] ~= nil) and (quote .. self:Escape(args[count]) .. quote) or 'NULL'
 	end)
 
-	runQuery(getQueryID(), self, query, args[count + 1])
+	self.Handle:Query(query, function(results)
+		handlequery(self, query, results, args[count + 1])
+	end)
 end
 
 function DATABASE:QuerySync(query, ...)
@@ -217,7 +149,7 @@ function DATABASE:QuerySync(query, ...)
 			data, lastid, affected, time = _data, _lastid, _affected, _time
 		end)
 	end
-
+	
 	while (not data) and (start >= SysTime()) do
 		self:Poll()
 	end
@@ -225,56 +157,30 @@ function DATABASE:QuerySync(query, ...)
 end
 
 function DATABASE:Prepare(query)
+	local _, varcount 	= string_gsub(query, '?', '?')
 	local dbhandle 		= self.Handle
 	local db 			= self
 	local values		= {}
 
-	if (tmysql.Version >= 4.3) then -- Support native prepared statements
-		local statement, err = dbhandle:Prepare(query)
+	query = string.Replace(query, '?', '%s')
 
-		if (statement == nil) then
-			self:Log("Error while preparing statement")
-			self:Log(err)
-			return
-		end
-
-		local varcount = statement:GetArgCount()
-
-		return setmetatable({
-			Handle = self.Handle,
-			Query = query,
-			Count = varcount,
-			Statement = statement,
-			Run = function(self, ...)
-				local cback = select(varcount + 1, ...)
-				for i = 1, varcount do
-					local value = select(i, ...)
-					values[i] = value
-				end
-
-				runStatement(getQueryID(), db, self, values, varcount, cback)
-			end,
-		}, STATEMENT)
-	else -- Fake news
-		local _, varcount 	= string_gsub(query, '?', '?')
-		query = string.Replace(query, '?', '%s')
-		return setmetatable({
-			Handle = self.Handle,
-			Query = query,
-			Count = varcount,
-			Values = values,
-			Run = function(self, ...)
-				local cback = select(varcount + 1, ...)
-				for i = 1, varcount do
-					local value = select(i, ...)
-					values[i] = (value ~= nil) and (quote .. db:Escape(value) .. quote) or 'NULL'
-				end
-				local query = string_format(query, unpack(values))
-
-				runQuery(getQueryID(), db, query, cback)
-			end,
-		}, STATEMENT)
-	end
+	return setmetatable({
+		Handle = self.Handle,
+		Query = query,
+		Count = varcount,
+		Values = values,
+		Run = function(self, ...)
+			local cback = select(varcount + 1, ...)
+			for i = 1, varcount do
+				local value = select(i, ...)
+				values[i] = (value ~= nil) and (quote .. db:Escape(value) .. quote) or 'NULL'
+			end
+			local query = string_format(query, unpack(values))
+			dbhandle:Query(query, function(results)
+				handlequery(db, query, results, cback)
+			end)
+		end,
+	}, STATEMENT)
 end
 
 
@@ -300,7 +206,7 @@ function DATABASE:GetServerVersion()
 end
 
 --[[function STATEMENT:Run(...)
-
+	
 end]]
 
 function STATEMENT:RunSync(...)
@@ -336,14 +242,13 @@ function STATEMENT:GetDatabase()
 end
 
 
-timer.Create('mysql.QueryQueue', 5, 0, function()
+timer.Create('mysql.QueryQueue', 0.5, 0, function()
 	for k, v in pairs(query_queue) do
-		if (v.Stmt) then
-			runStatement(v.Id, v.Db, v.Stmt, v.Values, v.VarCount, v.Cback, v.Trys)
+		if (v.Trys < 5) then
+			v.Db:Query(v.Query, v.Cback)
+			v.Trys = v.Trys + 1
 		else
-			runQuery(v.Id, v.Db, v.Query, v.Cback, v.Trys)
+			query_queue[k] = nil
 		end
 	end
-
-	table.Empty(query_queue)
 end)

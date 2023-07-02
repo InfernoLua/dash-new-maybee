@@ -37,38 +37,83 @@ function draw.OutlinedBox(x, y, w, h, col, bordercol, thickness)
 	DrawRect(x, y, w, h, thickness)
 end
 
-local blurboxes = {}
 local blur = Material 'pp/blurscreen'
-function draw.BlurResample(amount)
+function draw.Blur(panel, amount)
+	local x, y = panel:LocalToScreen(0, 0)
 	surface_SetDrawColor(255, 255, 255)
 	surface_SetMaterial(blur)
 	for i = 1, 3 do
 		blur:SetFloat('$blur', (i / 3) * (amount or 8))
 		blur:Recompute()
 		render_UpdateScreenEffectTexture()
-
-		for k, v in ipairs(blurboxes) do
-			render_SetScissorRect(v.x, v.y, v.x + v.w, v.y + v.h, true)
-				surface_DrawTexturedRect(0, 0, ScrW(), ScrH())
-			render_SetScissorRect(0, 0, 0, 0, false)
-			blurboxes[k] = nil
-		end
-
+		surface_DrawTexturedRect(x * -1, y * -1, ScrW(), ScrH())
 	end
 end
 
-function draw.BlurBox(x, y, w, h)
-	blurboxes[#blurboxes + 1] = {
-		x = x,
-		y = y,
-		w = w,
-		h = h
-	}
+local blurboxes = {}
+
+local blur = Material 'pp/blurscreen'
+
+function draw.BlurResample(amount)
+
+	surface_SetDrawColor(255, 255, 255)
+
+	surface_SetMaterial(blur)
+
+	for i = 1, 3 do
+
+		blur:SetFloat('$blur', (i / 3) * (amount or 8))
+
+		blur:Recompute()
+
+		render_UpdateScreenEffectTexture()
+
+
+
+		for k, v in ipairs(blurboxes) do
+
+			render_SetScissorRect(v.x, v.y, v.x + v.w, v.y + v.h, true)
+
+				surface_DrawTexturedRect(0, 0, ScrW(), ScrH())
+
+			render_SetScissorRect(0, 0, 0, 0, false)
+
+			blurboxes[k] = nil
+
+		end
+
+
+
+	end
+
 end
 
-function draw.BlurPanel(panel)
-	draw.BlurBox(panel:GetBounds())
+
+
+function draw.BlurBox(x, y, w, h)
+
+	blurboxes[#blurboxes + 1] = {
+
+		x = x,
+
+		y = y,
+
+		w = w,
+
+		h = h
+
+	}
+
 end
+
+
+
+function draw.BlurPanel(panel)
+
+	draw.BlurBox(panel:GetBounds())
+
+end
+
 draw.Blur = draw.BlurPanel -- Backward support
 
 function draw.TextRotated(text, x, y, color, font, ang)
